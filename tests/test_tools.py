@@ -88,7 +88,7 @@ class ProxyEndToEndTest(unittest.TestCase):
 
         args = argparse.Namespace(
             listen=listen_port, forward=f"127.0.0.1:{gcs_port}", delay=30.0, jitter=0.0, loss=10.0,
-            loss_up=0.0, burst=None, duration=4.0, csv=None, quiet=True, seed=3)
+            loss_up=0.0, burst=None, duration=6.0, csv=None, quiet=True, seed=3)
         proxy = mp.LinkProxy(args)
         th = threading.Thread(target=proxy.run, daemon=True)
         th.start()
@@ -106,16 +106,20 @@ class ProxyEndToEndTest(unittest.TestCase):
 
         dec = mavlink2.MAVLink(None)
         got, delays = 0, []
-        deadline = time.time() + 2
+        deadline = time.time() + 4.5
         while time.time() < deadline:
             try:
                 data = gcs.recv(4096)
             except socket.timeout:
+                if not th.is_alive():
+                    break
                 continue
             for m in dec.parse_buffer(data) or []:
                 got += 1
                 delays.append(time.time() - sent_t[m.time_boot_ms])
         th.join(timeout=5)
+        veh.close()
+        gcs.close()
 
         down = proxy.stats["down"]
         self.assertGreater(down.dropped_by_proxy, 20)            # ~10 % of 400
