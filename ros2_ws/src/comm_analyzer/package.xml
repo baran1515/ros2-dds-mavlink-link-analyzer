@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypelocation="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>comm_analyzer</name>
+  <version>1.0.0</version>
+  <description>ROS 2 nodes that measure DDS link latency, loss and jitter between an autonomous vehicle and ground units, and monitor ArduPilot DDS telemetry.</description>
+  <maintainer email="kocbaran460@gmail.com">Baran Koc</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>comm_interfaces</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>builtin_interfaces</depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
