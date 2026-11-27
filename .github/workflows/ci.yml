@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pymavlink pytest
+      - name: Metrics + MAVLink proxy end-to-end tests
+        run: python -m pytest -q tests
+      - name: linkmetrics copies are identical
+        run: diff tools/linkmetrics.py ros2_ws/src/comm_analyzer/comm_analyzer/linkmetrics.py
+      - name: Shell scripts
+        run: for f in netem/*.sh setup/*.sh scripts/*.sh; do bash -n "$f"; done
+
+  ros2:
+    runs-on: ubuntu-22.04
+    container: ros:humble-ros-base
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          apt-get update
+          apt-get install -y ros-humble-rmw-cyclonedds-cpp ros-humble-diagnostic-msgs ros-humble-sensor-msgs python3-pytest
+      - name: colcon build + test
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash
+          cd ros2_ws
+          colcon build
+          colcon test --packages-select comm_analyzer --pytest-args -k linkmetrics
+          colcon test-result --verbose
+      - name: 15 s DDS link test (no impairment)
+        shell: bash
+        run: |
+          source /opt/ros/humble/setup.bash && source ros2_ws/install/setup.bash
+          export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+          export CYCLONEDDS_URI=file://$PWD/config/cyclonedds_lo.xml
+          mkdir -p results
+          timeout --signal=INT 20 ros2 launch comm_analyzer comm_test.launch.py \
+            rate_hz:=50.0 csv:=$PWD/results/ci_ideal__reliable_d10__50hz_64b.csv || true
+          tail -3 results/ci_ideal__reliable_d10__50hz_64b.csv
+          test "$(wc -l < results/ci_ideal__reliable_d10__50hz_64b.csv)" -gt 5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-results
+          path: results/
